@@ -2,3 +2,5 @@
 .RData
 .Rproj.user
 .DS_Store
+figures/monthly/*.png
+figures/yearly/*.png
