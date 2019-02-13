@@ -1,0 +1,63 @@
+---
+title: "Animate / Movies"
+author: "Ryan Peek"
+date: "*Updated: `r format(Sys.Date())`*"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    toc: yes
+    toc_float: yes
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+
+suppressPackageStartupMessages({
+  library(tidyverse); 
+  library(here)
+  library(viridis)
+})
+
+```
+
+## Make `.mp4` Movie's from `.png`
+
+To make a quick movie of all our `.png`'s, we can use either ImageMagick, or ffmpeg. First, good to know where we are:
+
+```{bash, echo=T}
+
+pwd
+
+```
+
+### ImageMagick
+
+To make sure you have imagemagick installed, you can type `convert` in your terminal. If it is installed, you should get a ton of text with all the other options. Assuming that works, then use the following code to create a `.mp4`!
+
+```{bash, echo=T, eval=F}
+
+cd ../figures/monthly
+convert -delay 8 -quality 95 *.png monthly_movie.mp4
+
+```
+
+#### ffmpeg
+
+With `ffmpeg`, we can try something slightly different.
+
+```{bash, echo=T, eval=F}
+
+cd ../figures/monthly
+ffmpeg -pattern_type glob -i '*.png' -vf "setpts=10*PTS" ffmpg_movie.mp4
+
+# the setpts=10*PTS is a multiplier to slow things down. To speed up, use a fraction/decimal.
+```
+
+### Check out the Animation!
+
+<video width="640" height="480" true controls>
+  <source src="../figures/monthly/monthly_movie.mp4" type="video/mp4">
+</video>
