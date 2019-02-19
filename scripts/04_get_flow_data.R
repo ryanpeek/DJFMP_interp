@@ -6,6 +6,7 @@
 
 library(tidyverse)
 library(lubridate)
+library(viridis)
 
 # FOR USGS DATA
 #library(devtools)
@@ -24,10 +25,10 @@ source("scripts/f_add_WYD.R")
 # IST (Sac at I St Bridge)
 
 get.CDEC(station = "FPT", sensor = 20, duration = "D", 
-                     start = "2014-10-01", end = "2018-10-01",csv = F)
+                     start = "2014-10-01", end = "2018-09-30",csv = F)
 
 get.CDEC(station = "MHB", sensor = 20, duration = "H", 
-         start = "2014-10-01", end = "2018-10-01",csv = F)
+         start = "2014-10-01", end = "2018-09-30",csv = F)
 
 
 # SUMMARIZE TO DAILY ------------------------------------------------------
@@ -41,16 +42,44 @@ FPT$VALUE <- as.numeric(FPT$VALUE)
 MHB %>% mutate(VALUE=as.numeric(VALUE)) %>% 
   filter(!is.na(VALUE)) %>% 
   group_by(WY, DOWY) %>% 
-  summarize(VALUE = mean(VALUE, na.rm = T)) -> MHB_day
+  summarize(VALUE = mean(VALUE, na.rm = T)) %>% 
+  mutate(STATION_ID="MHB") %>% 
+  dplyr::select(STATION_ID, DOWY, WY, VALUE) -> MHB_day
+
+FPT_day <- FPT %>% dplyr::select(STATION_ID, DOWY, WY, VALUE)
+
 
 # PLOT CDEC ---------------------------------------------------------------
 
 # make a quick plot of data:
 
 ggplot() + 
-  geom_line(data=FPT, aes(x=DOWY, y=VALUE, color=as.factor(WY)), lty=2) + 
-  ylab("log(CFS)") + 
-  geom_line(data=MHB_day, aes(x=DOWY, y=VALUE, color=as.factor(WY))) + 
-  scale_color_viridis_d("Water Year") + 
-  theme_bw() #+ scale_y_log10()
+  geom_line(data=FPT_day, aes(x=DOWY, y=VALUE, color=STATION_ID), lty=2) + 
+  ylab("log(CFS)") +  scale_y_log10() +
+  geom_line(data=MHB_day, aes(x=DOWY, y=VALUE, color=STATION_ID)) +
+  scale_color_manual("Site", values=c("FPT"=viridis(1), "MHB"=viridis(3)[2])) +
+  theme_bw() +
+  facet_grid(WY~.)
 
+
+# single year:
+(flow2017 <- ggplot() + 
+    geom_line(data=FPT[FPT$WY==2017,], aes(x=DOWY, y=VALUE, color=STATION_ID), lty=2, lwd=1) + 
+    ylab("log(CFS)") +  #scale_y_log10() +
+    geom_line(data=MHB_day[FPT$WY==2017,], aes(x=DOWY, y=VALUE, color=STATION_ID), lwd=1) +
+    scale_color_manual("Site", values=c("FPT"=viridis(1), "MHB"=viridis(3)[2])) +
+    theme_bw())
+
+(flow2015 <- ggplot() + 
+    geom_line(data=FPT[FPT$WY==2015,], aes(x=DOWY, y=VALUE, color=STATION_ID), lty=2, lwd=1) + 
+    ylab("log(CFS)") +  #scale_y_log10() +
+    geom_line(data=MHB_day[FPT$WY==2015,], aes(x=DOWY, y=VALUE, color=STATION_ID), lwd=1) +
+    scale_color_manual("Site", values=c("FPT"=viridis(1), "MHB"=viridis(3)[2])) +
+    theme_bw())
+
+
+# Patchwork/cowplot stuff together?
+library(patchwork)
+p2017 + flow2017 + plot_layout(ncol = 1, heights = c(1, 1)) 
+
+p2015 + flow2015 + plot_layout(ncol = 1, heights = c(1, 1)) 

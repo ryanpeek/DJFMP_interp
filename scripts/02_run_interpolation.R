@@ -24,7 +24,7 @@ load("data/stations_sf.rda")
 load("data/cleaned_CB_data.rda") # Clarke-Bumpus (CB) sampled mesozooplankton
 
 # select columns of interest, here: ALLCLADOCERA
-cb_clad <- cb_wide %>% dplyr::select(SurveyCode:CBVolume, ALLCLADOCERA, -Core)
+cb_clad <- cb_wide %>% dplyr::select(SurveyCode:CBVolume, ALLCLADOCERA, -Core) %>% mutate(MM=month(Date))
 
 # GET SPATIAL DATA --------------------------------------------------------
 

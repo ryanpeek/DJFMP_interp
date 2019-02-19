@@ -1,6 +1,37 @@
 # Visualize
 
 
+# LOAD & FIXUP DATA -------------------------------------------------------
+
+library(sf)
+library(tidyverse)
+library(lubridate)
+
+load("data/stations_sf.rda")
+load("data/cleaned_CB_data.rda") # Clarke-Bumpus (CB) sampled mesozooplankton
+
+# select columns of interest, here: ALLCLADOCERA
+cb_clad <- cb_wide %>% dplyr::select(SurveyCode:CBVolume, ALLCLADOCERA, -Core) %>% mutate(MM=month(Date))
+
+# Read in shapefile and transform polygon
+delta_sf <- st_read("data/Bay_delta_selection.shp") %>% st_transform(crs=4326)
+st_crs(delta_sf) # double check projection/crs
+
+# crop to region of interest...warning is ok!
+crop_box <- st_bbox(c(xmin = -122.25, xmax = -121.22, ymax = 38.45, ymin = 37.77), 
+                    crs = st_crs(4326))
+
+# crop delta
+delta_crop <- st_crop(delta_sf, crop_box)
+stations_crop <- st_crop(stations_sf, crop_box) # warning is ok!
+
+# JOIN SPATIAL STATIONS WITH DATA 
+
+# Join with station info for lat longs
+cb_clad_crop <- dplyr::inner_join(cb_clad, stations_crop, by=c("Station"))
+
+# make into sf spatial object:
+cb_clad_crop <- st_as_sf(cb_clad_crop, coords = c("lon","lat"), crs=4326, remove=FALSE)
 
 # PLOT IN GGPLOT ----------------------------------------------------------
 
@@ -32,7 +63,7 @@ clad_2017_06_df <- as.data.frame(clad_2017_06_rast, xy=TRUE)
 # bbox <- st_bbox(c(xmin=-122.12, xmax=-121.3812, ymax=38.2, ymin=37.9))
 
 p1977<-ggplot() +
-  annotation_map_tile(type = "stamenwatercolor") + # osm, stamenwatercolor
+  #annotation_map_tile(type = "stamenwatercolor") + # osm, stamenwatercolor
   geom_sf(data=delta_crop, fill="gray30", alpha=0.5) +
   geom_raster(data = clad_1977_06_df,
               aes(x = x, y = y, fill = z)) + 
@@ -44,6 +75,7 @@ p1977<-ggplot() +
   labs(title = "All Cladocerans: 1977-June", x="", y="") +
   annotation_scale(location = "bl") +
   theme_classic(base_size = 9) +
+  theme(panel.grid.major = element_line(color = "gray80")) +
   annotation_north_arrow(location = "bl", width = unit(1, "cm"), 
                          pad_y = unit(0.7, "cm"),
                          which_north = "true")
@@ -51,7 +83,7 @@ p1977<-ggplot() +
 p1977
 
 p1983<-ggplot() +
-  annotation_map_tile(type = "stamenwatercolor") +
+  #annotation_map_tile(type = "stamenwatercolor") +
   #annotation_map_tile(type = "osm", cachedir = system.file("rosm.cache", package = "ggspatial")) +
   geom_sf(data=delta_crop, fill="gray30", alpha=0.5) +
   geom_raster(data = clad_1983_06_df,
@@ -64,13 +96,15 @@ p1983<-ggplot() +
   labs(title="All Cladocerans: 1983-June", x="",y="") +
   annotation_scale(location = "bl") +
   theme_classic(base_size = 9) +
+  theme(panel.grid.major = element_line(color = "gray80")) +
   annotation_north_arrow(location = "bl", width = unit(1, "cm"), 
                          pad_y = unit(0.7, "cm"),
                          which_north = "true")
+
 p1983
 
 p2015<-ggplot() +
-  annotation_map_tile(type = "osm", zoom=12, cachedir = system.file("rosm.cache", package = "ggspatial")) +
+  #annotation_map_tile(type = "osm", zoom=12, cachedir = system.file("rosm.cache", package = "ggspatial")) +
   #annotation_map_tile(type = "stamenwatercolor") +
   geom_sf(data=delta_crop, fill="gray30", alpha=0.5) +
   geom_raster(data = clad_2015_06_df,
@@ -83,13 +117,14 @@ p2015<-ggplot() +
   labs(title="All Cladocerans: 2015-June", x="",y="")+
   annotation_scale(location = "bl") +
   theme_classic(base_size = 9) +
+  theme(panel.grid.major = element_line(color = "gray80")) +
   annotation_north_arrow(location = "bl", width = unit(1, "cm"), 
                          pad_y = unit(0.7, "cm"),
                          which_north = "true")
 p2015
 
 p2017<-ggplot() +
-  annotation_map_tile(type = "osm", zoom=12, cachedir = system.file("rosm.cache", package = "ggspatial")) +
+  # annotation_map_tile(type = "osm", zoom=12, cachedir = system.file("rosm.cache", package = "ggspatial")) +
   #annotation_map_tile(type = "osm", zoom=12) +
   geom_sf(data=delta_crop, fill="gray30", alpha=0.5) +
   geom_raster(data = clad_2017_06_df,
@@ -98,12 +133,18 @@ p2017<-ggplot() +
           color="gray20",fill="white", alpha=0.9) +
   scale_fill_viridis_c("log(Clad)", option="A",
                        na.value = "transparent", limits=c(0,14)) + 
-  coord_sf(xlim = c(-122.12, -121.3812), ylim=c(38.2, 37.88), crs=4326) + theme_classic(base_size = 9) +
+  coord_sf(xlim = c(-122.12, -121.3812), ylim=c(38.2, 37.88), crs=4326) +
+  theme_classic(base_size = 9) +
+  theme(panel.grid.major = element_line(color = "gray80")) +
   labs(title="All Cladocerans: 2017-June", x="",y="")+ 
   annotation_scale(location = "bl") +
   annotation_north_arrow(location = "bl", width = unit(1, "cm"), 
                          pad_y = unit(0.7, "cm"),
                          which_north = "true")
+
+p2017
+
+
 # quartz() have to open this to avoid annoying "Error in grid.call()"
 quartz(width = 8, height = 6)
 p2017
@@ -121,7 +162,9 @@ library(patchwork)
 
 quartz(width=8, height=6)
 p1977 + p1983 + plot_layout(ncol = 1, heights = c(1, 1))
-dev.copy2pdf(file="test_77-83.pdf")
+p2015 + p2017 + plot_layout(ncol = 1, heights = c(1, 1))
+dev.off()
+#dev.copy2pdf(file="test_77-83.pdf")
 
 
 # cowplot way?
