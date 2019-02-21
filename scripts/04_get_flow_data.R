@@ -78,8 +78,26 @@ ggplot() +
     theme_bw())
 
 
+# ADD RASTERS -------------------------------------------------------------
+
+# run the 03_visualize_rasters script
+
+
+# PLOT TOGETHER -----------------------------------------------------------
+
+
 # Patchwork/cowplot stuff together?
 library(patchwork)
 p2017 + flow2017 + plot_layout(ncol = 1, heights = c(1, 1)) 
 
 p2015 + flow2015 + plot_layout(ncol = 1, heights = c(1, 1)) 
+
+
+# cowplot
+library(cowplot)
+plot_grid(p2015, flow2015, nrow=2)
+ggsave(filename = "figures/flow_cladoceran_2015_jun.png", width = 11, height = 8, units = "in", dpi = 300)
+
+
+plot_grid(p2017, flow2017, nrow=2)
+ggsave(filename = "figures/flow_cladoceran_2017_jun.png", width = 11, height = 8, units = "in", dpi = 300)

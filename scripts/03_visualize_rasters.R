@@ -67,7 +67,7 @@ p1977<-ggplot() +
   geom_sf(data=delta_crop, fill="gray30", alpha=0.5) +
   geom_raster(data = clad_1977_06_df,
               aes(x = x, y = y, fill = z)) + 
-  geom_sf(data=stations_crop, pch=21, size=2, 
+  geom_sf(data=cb_clad_crop[cb_clad_crop$Year==1983 & cb_clad_crop$MM==6,], pch=21, size=2, 
           color="gray20",fill="white", alpha=0.9) +
   scale_fill_viridis_c("log(Clad)", option = "A",
                        na.value = "transparent", limits=c(0,14)) + 
@@ -88,7 +88,7 @@ p1983<-ggplot() +
   geom_sf(data=delta_crop, fill="gray30", alpha=0.5) +
   geom_raster(data = clad_1983_06_df,
               aes(x = x, y = y, fill = z)) + 
-  geom_sf(data=stations_crop, pch=21, size=2, 
+  geom_sf(data=cb_clad_crop[cb_clad_crop$Year==1983 & cb_clad_crop$MM==6,], pch=21, size=2, 
           color="gray20",fill="white", alpha=0.9) +
   scale_fill_viridis_c("log(Clad)", option = "A",
                        na.value = "transparent", limits=c(0,14)) + 
@@ -143,6 +143,11 @@ p2017<-ggplot() +
                          which_north = "true")
 
 p2017
+
+
+
+# SAVING OUT --------------------------------------------------------------
+
 
 
 # quartz() have to open this to avoid annoying "Error in grid.call()"
