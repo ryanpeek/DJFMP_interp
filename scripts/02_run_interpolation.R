@@ -40,6 +40,9 @@ crop_box <- st_bbox(c(xmin = -122.25, xmax = -121.22, ymax = 38.48, ymin = 37.77
 delta_crop <- st_crop(delta_sf, crop_box)
 stations_crop <- st_crop(stations_sf, crop_box) # warning is ok!
 
+mapofsites <- mapview(stations_crop, col.regions="yellow") + mapview(delta_crop, col.regions="blue", alpha.regions=0.4)
+
+mapshot(mapofsites, url="map_of_sites.html")
 # test plots
 # plot(delta_sf$geometry, col=scales::alpha("blue", 0.5), axes=T)
 # plot(delta_crop$geometry, col=scales::alpha("orange", 0.7), axes=T)
@@ -61,9 +64,10 @@ cb_clad_crop <- dplyr::inner_join(cb_clad, stations_crop, by=c("Station"))
 # make into sf spatial object:
 cb_clad_crop <- st_as_sf(cb_clad_crop, coords = c("lon","lat"), crs=4326, remove=FALSE)
 
-# mapview(cb_clad_crop, col.regions="yellow") + mapview(delta_crop, col.regions="blue", alpha.regions=0.4)
+mapofsites <- mapview(cb_clad_crop, col.regions="yellow") + mapview(delta_crop, col.regions="blue", alpha.regions=0.4)
 
-save(cb_clad_crop, delta_crop, file = "data_output/sf_cb_clad_crop_delta_crop.rda")
+
+#dsave(cb_clad_crop, delta_crop, file = "data_output/sf_cb_clad_crop_delta_crop.rda")
 
 # SETUP AND RUN INTERPOLATION FUNCTION -------------------------------------
 
