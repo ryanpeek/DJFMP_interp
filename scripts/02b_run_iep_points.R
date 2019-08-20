@@ -1,19 +1,15 @@
-## Interpolate Data and Plot
+## Loop Data and Plot
 
 # LIBRARIES ---------------------------------------------------------------
 
-library(rgdal)
-library(raster)
 library(sf)
+library(leaflet)
+library(leaflet.extras)
 library(mapview)
+library(viridis)
 library(purrr)
 library(tidyverse)
 library(lubridate)
-
-# LOAD FUNCTION -----------------------------------------------------------
-
-# First run function so it's ready to go in your environment
-source("scripts/f_interpolation_rap.R")
 
 # GET DATA ----------------------------------------------------------------
 
@@ -40,21 +36,6 @@ crop_box <- st_bbox(c(xmin = -122.25, xmax = -121.22, ymax = 38.48, ymin = 37.77
 delta_crop <- st_crop(delta_sf, crop_box)
 stations_crop <- st_crop(stations_sf, crop_box) # warning is ok!
 
-mapofsites <- mapview(stations_crop, col.regions="yellow") + mapview(delta_crop, col.regions="blue", alpha.regions=0.4)
-
-mapshot(mapofsites, url="map_of_sites.html")
-# test plots
-# plot(delta_sf$geometry, col=scales::alpha("blue", 0.5), axes=T)
-# plot(delta_crop$geometry, col=scales::alpha("orange", 0.7), axes=T)
-# plot(stations_crop$geometry, col="black", add=T)
-
-# quick mapview/leaflet interactive map of the delta
-# see here for advanced mapview options: https://environmentalinformatics-marburg.github.io/mapview/advanced/advanced.html
-
-# mapview
-# mapview(delta_sf, alpha.regions=0.7, show.layer=F) + 
-#   mapview(delta_crop, col.regions="orange") + 
-#   mapview(stations_crop, layer.name="CB Stations", col.regions="yellow")
 
 # JOIN SPATIAL STATIONS WITH DATA -----------------------------------------
 
@@ -66,35 +47,30 @@ cb_clad_crop <- st_as_sf(cb_clad_crop, coords = c("lon","lat"), crs=4326, remove
 
 mapofsites <- mapview(cb_clad_crop, col.regions="yellow") + mapview(delta_crop, col.regions="blue", alpha.regions=0.4)
 
+mapofsites
+#mapshot(mapofsites, url="map_of_sites.html")
+# quick mapview/leaflet interactive map of the delta
+# see here for advanced mapview options: https://r-spatial.github.io/mapview/articles/articles/mapview_02-advanced.html
 
-#dsave(cb_clad_crop, delta_crop, file = "data_output/sf_cb_clad_crop_delta_crop.rda")
+
+#save(cb_clad_crop, delta_crop, file = "data_output/sf_cb_clad_delta_crop.rda")
 
 # SETUP AND RUN INTERPOLATION FUNCTION -------------------------------------
 
 # Define the legend scale bar with the min/max abundance across all data you are going to show (otherwise the scale bar changes between time steps)
-year <- 1977
+year <- 1983
 month <- 3
 min_obs <- 0 # log transformed
-max_obs <- 14 # log transformed
+max_obs <- 13 # log transformed
+
 
 # filter to specific year or years
 cb_yr <- cb_clad_crop %>% filter(Year==year, MM==month)
-#mapview(cb_yr, col.regions="maroon") + mapview(cb_clad_crop)
 
-# run function
-GAM_interpolate(x=cb_yr$lon, y=cb_yr$lat, 
-                z=cb_yr$ALLCLADOCERA_log,
-                minObs = min_obs, maxObs = max_obs,
-                delta_crop, k=10, Month = month, Year=year,
-                outputWebmap = T)
+mapview(cb_yr, zcol="ALLCLADOCERA_log", cex="ALLCLADOCERA_log", 
+        layer.name=paste0(year, "-", month.abb[month],"\nAll Cladocera (log)")) + 
+  mapview(cb_clad_crop, col.regions="transparent", cex=0.3, alpha=0.2, legend=FALSE)
 
-# save out for demo
-
-#clad_2017_06_rast <- pred_raster
-#save(clad_2017_06_rast, file = "data_output/pred_raster_clad_2017_06_rast.rda")
-#crs(clad_2017_06_rast) <- CRS('+init=EPSG:4326')
-#slideView(img1 = clad_2015_06_rast, img2 = clad_2017_06_rast)
-#widgetframe::frameWidget(sv2)
 
 # BUILD MANUAL WEBMAP -----------------------------------------------------
 
@@ -107,72 +83,66 @@ leaflet() %>%
   addProviderTiles("OpenStreetMap.BlackAndWhite", group = "OpenBW") %>%
   addProviderTiles("Esri.WorldGrayCanvas", group="ESRI Canvas") %>%
 
-  addRasterImage(clad_1977_06_rast, group="Interpolated Abundance",
-                 colors = col_pal,
-                 opacity = 0.8) %>%
   addCircleMarkers(data=cb_yr, ~lon, ~lat, group="Stations",
-                   radius = 3.5, color = "white", fillColor = "#008080",
+                   radius = ~ALLCLADOCERA_log, color = ~col_pal(ALLCLADOCERA_log),
                    weight= 1, fillOpacity=0.7, stroke=TRUE,
-                   popup = paste0("All Cladoceran (log) = ", cb_yr$ALLCLADOCERA_log,
-                                  "<br> Station: ", cb_yr$Station,
-                                  "<br> Lon: ", cb_yr$lon,
-                                  "<br> Lat: ", cb_yr$lat,
-                                  "<br> Region: ", cb_yr$Region,
-                                  "<br> Temperature: ", cb_yr$Temperature)) %>%
-  addLegend(pal = col_pal, values = c(min_obs, max_obs), title = "log(Cladocerans)") %>%
-  addControl(paste0(month, "-", year), position = "bottomleft") %>% 
-  addLayersControl(
-    baseGroups = c("ESRI Canvas", "OpenBW",
-                   "Topo","ESRI Aerial"),
-    overlayGroups = c("Interpolated Abundance", "Stations"),
-    options = layersControlOptions(collapsed = T))
+                   popup = paste0(
+                     "All Cladocerans = ", cb_yr$ALLCLADOCERA,
+                     "<br> All Cladoceran (log) = ", cb_yr$ALLCLADOCERA_log,
+                     "<br> Station: ", cb_yr$Station,
+                     "<br> Lon: ", cb_yr$lon,
+                     "<br> Lat: ", cb_yr$lat,
+                     "<br> Region: ", cb_yr$Region,
+                     "<br> Temperature: ", cb_yr$Temperature)) %>%
+  addLegend(pal = col_pal, values = c(min_obs, max_obs), title = "log(All Clad.)") %>%
+  addFullscreenControl() %>% 
+  addControl(paste0(month.abb[month], "-", year), position = "bottomleft") %>% 
+  addLayersControl(position = "topleft",
+                   baseGroups = c("ESRI Canvas", "OpenBW",
+                                  "Topo","ESRI Aerial"),
+                   overlayGroups = c("Log Abundance"),
+                   options = layersControlOptions(collapsed = T))
 
 # MAKE STATIC MAP ---------------------------------------------------------
 
-library(rasterVis)
-library(RColorBrewer)
+library(ggmap)
+library(ggspatial)
 
-static_Rasterplot <- function(Yr, Mon, rasterfile, file_type){
-  
-  print(paste0("Making figure for: ", Yr, "-", Mon))
-  
-  # filter to year
-  cb_yr <- cb_clad_crop %>% filter(Year==Yr, MM==Mon)
-  
-  # run interpolation function
-  GAM_interpolate(x=cb_yr$lon, y=cb_yr$lat, 
-                  z=cb_yr$ALLCLADOCERA_log,
-                  minObs = min_obs, maxObs = max_obs,
-                  delta_crop, k=6, outputWebmap = F)
-  
-  
-  print("Making plot")
-  rastPlot <- levelplot(x = rasterfile, xlab="", ylab="",
-                        xlim = c(-122.12, -121.3812),
-                        ylim = c(37.9, 38.2),
-                        cex=0.8,
-                        at=seq(0, 10, length=100), pretty=TRUE,
-                        main=paste0("All Cladocera: ", Yr, "-", Mon),
-                        colorkey=list(
-                          space="bottom", height=0.7,
-                          title="log(Abund)",
-                          #axis.line=list(col="transparent"),
-                          col.regions=viridis),
-                        margin=list(draw=FALSE))
-  
-  print("Saving plot...")
-  png(filename = paste0("./figures/", Yr, "_", Mon, "_all_cladocera", file_type), 
-      width = 7, height = 5, 
-      units = "in", res = 300)
-  print(rastPlot)
-  dev.off()
-  print("Plot saved!")
-  # now print again for output
-  #print(rastPlot)
-}
 
-#test
-static_Rasterplot(Yr = year, Mon = month, pred_raster, ".png")
+location=c(-121.7927,38.0427) # set the center of the map
+# set the background map up
+map1 <- get_map(location=location, crop = F,
+                color="bw",
+                maptype="terrain",
+                source="google",
+                zoom=10)
+
+yr <- 2016
+mon <- c(2:5)
+min_obs <- 0 # log transformed
+max_obs <- 13 # log transformed
+
+
+#ggmap(map1) +
+ggplot() +
+  geom_sf(data=delta_crop, fill="gray30", alpha=0.5, inherit.aes=F) +
+  geom_sf(data=cb_clad_crop[cb_clad_crop$Year==yr & cb_clad_crop$MM %in% mon,], 
+          aes(fill=ALLCLADOCERA_log, size=ALLCLADOCERA_log), pch=21, color="gray20", alpha=0.9) +
+  labs(title = paste0("All Cladocerans: ", yr, "-", month.abb[mon]), x="", y="") +
+  annotation_scale(location = "bl") +
+  theme_classic(base_size = 9) +
+  theme(panel.grid.major = element_line(color = "gray80")) +
+  annotation_north_arrow(location = "bl", width = unit(1, "cm"),
+                        pad_y = unit(0.7, "cm"),
+                        which_north = "true") +
+  scale_fill_viridis_c("log(Clad)", option = "A",
+                       na.value = "transparent", limits=c(0,14)) +
+  scale_size_continuous(guide = FALSE) +
+  #coord_sf(xlim = c(-122.12, -121.38), ylim=c(38.27, 37.88), crs=4326) +
+  theme_bw()+#base_family = "Roboto Condensed") +
+  facet_wrap(.~MM)
+
+ggsave(filename = paste0("figures/all_cladocera_points_", yr, "_months_", min(mon), "-",max(mon), ".pdf"),width = 10, height = 8, units = "in")
 
 
 # STITCHING THINGS TOGETHER -----------------------------------------------
