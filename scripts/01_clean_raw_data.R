@@ -6,27 +6,47 @@
 
 library(tidyverse)
 library(readxl)
+library(fs)
 library(sf)
 library(lubridate)
+library(janitor)
 
 
 # GET DATA ----------------------------------------------------------------
 
-# see the sheets
-excel_sheets("data/1972-2017CBMatrix.xlsx")
+# download file for CB zoop sampling
+# also see "MysidMatrix" and "Pump Matrix"
+ftp_link <- "ftp://ftp.dfg.ca.gov/IEP_Zooplankton/1972-2018CBMatrix.xlsx"
+fn <- basename(ftp_link)
+download.file(ftp_link, destfile = paste0("data/", fn))
 
-# read in data
-cbmatrix <- read_xlsx("data/1972-2017CBMatrix.xlsx", sheet = 6)
+# set local link (make sure this folder exists on your RStudio proj)
+loc_link <- paste0("data/", fn)
+excel_sheets(path = loc_link)
+
+# ZOOP DATA
+cbmatrix <- read_xlsx(loc_link, sheet = 6, 
+                      # give column types to avoid weird errors
+                      col_types = c(rep("numeric",4), "date", "text", "text", "text", "numeric",
+                                    "text", "numeric", "text", rep("numeric",62))) %>% 
+  clean_names()
+
 str(cbmatrix)
 
-# Taxa lookup
-taxa <- read_xlsx("data/1972-2017CBMatrix.xlsx", sheet = 4)
-
-# station locations
-stations <- read_xlsx("data/1972-2017CBMatrix.xlsx", 
-                      sheet = 2, skip = 2) %>% 
-  mutate(lat = lat_deg + lat_min/60 + lat_sec/3600,
-         lon = lon_deg + lon_min/60 + lon_sec/3600) %>% 
+# TAXA LOOKUP DATA
+taxa <- read_xlsx(loc_link, sheet = 4, skip=1) %>% 
+  # drop last line:
+  slice(1:(n()-1)) %>% 
+  clean_names()
+  
+# STATION LOCATION DATA
+stations <- read_xlsx(loc_link,
+                      sheet = 2, skip = 4,
+                      col_names = c("Station","Core", "Current", "Location", "lat_dd", "lat_min", "lat_sec",
+                                    "lon_dd", "lon_min", "lon_sec", "Year_start", "Year_end")) %>% 
+  clean_names() %>% 
+  mutate(lat = lat_dd + lat_min/60 + lat_sec/3600,
+         lon = lon_dd + lon_min/60 + lon_sec/3600) %>% 
   select(-starts_with("lat_"), -starts_with("lon_")) %>% 
   filter(!is.na(lat)) %>% 
   mutate(lon = lon*-1)
@@ -36,40 +56,39 @@ stations <- read_xlsx("data/1972-2017CBMatrix.xlsx",
 stations_sf <- st_as_sf(stations, coords = c("lon", "lat"), remove = F, crs=4326)
 
 library(mapview)
-mapview(stations_sf, zcol="Current")
-
+mapview(stations_sf, zcol="current")
 
 # MAKE WIDE ---------------------------------------------------------------
-# make data long not wide
+
+# make data long not wide, but not necessary
 # names(cbmatrix)
-# cb_dat <- cbmatrix %>% 
-#   gather(key = taxa, value= measurement, -c(SurveyCode:CBVolume))
+# cb_dat <- cbmatrix %>%
+#   gather(key = taxa, value= measurement, -c(survey_code:cb_volume))
 
 # FORMAT DATA -------------------------------------------------------------
 
 cb_wide <- cbmatrix
-cb_wide$Date <- as.Date(cb_wide$Date)
-cb_wide$MM <- lubridate::month(cb_wide$Date) # add month
-
-#class(cb_wide$Date)
+cb_wide$date <- ymd(cb_wide$date)
+cb_wide$mm <- month(cb_wide$date) # add month
 
 # CHECK DATA FOR MISSINGNESS ----------------------------------------------
 
 library(naniar)
-#gg_miss_fct(cb_wide, Date)
-gg_miss_var(cb_wide, "Date", show_pct = T)
-gg_miss_var(cb_wide, "ALLCLADOCERA")
-range(cb_wide$ALLCLADOCERA)
+gg_miss_var(cb_wide, "date", show_pct = T)
+gg_miss_var(cb_wide, "allcladocera")
+summary(cb_wide$allcladocera)
+range(cb_wide$allcladocera)
 
-# cb_wide %>% group_by(Station) %>% tally() %>% View()
+# count how many records by station
+# cb_wide %>% group_by(station) %>% tally() %>% View()
 
 # LOG TRANSFORM -----------------------------------------------------------
 
 # log transform for scaling:
-cb_wide$ALLCLADOCERA_log <- log(cb_wide$ALLCLADOCERA+1)
-hist(cb_wide$ALLCLADOCERA_log, col="maroon") # check range
-range(cb_wide$ALLCLADOCERA_log) # check range
-# summary(cb_wide)
+cb_wide <- cb_wide %>% 
+  mutate(allcladocera_log = log(allcladocera+1))
+hist(cb_wide$allcladocera_log, col="maroon") # check range
+range(cb_wide$allcladocera_log) # check range
 
 # SAVE OUT ----------------------------------------------------------------
 
