@@ -116,7 +116,7 @@ clad_filt3 <- clad_filt3 %>%
 # join with DWR data
 clad_filt4 <- bind_rows(clad_filt3[,c(1:6,10, 13,14)], dwr) %>% data.frame() %>% select(-geometry) %>% 
   st_as_sf(coords = c("lon","lat"), crs=4326, remove=FALSE) %>% 
-  mutate(allclad_cut = as.integer(Hmisc::cut2(allcladocera_log, g=4))) # make breaks
+  mutate(allclad_cut = as.integer(Hmisc::cut2(allcladocera_log, g=5))*.8) # make breaks
 
 # Quick Facet -------------------------------------------------------------
 
@@ -134,7 +134,7 @@ ggplot() +
                        na.value = "transparent", limits=c(0,14)) +
   geom_sf(data=delta_crop, fill="steelblue", color="steelblue", alpha=0.7, inherit.aes=F) +
   #geom_sf(data=stations_crop, fill="gray60", alpha=0.5, size=2, show.legend = F, inherit.aes=F) +
-  geom_sf(data=filter(clad_filt4, year<2018),
+  geom_sf(data=clad_filt4,
           # with no size
           #aes(fill=allcladocera_log), pch=21, color="gray20", size=4.5, alpha=0.9) +
           # with size
@@ -142,13 +142,14 @@ ggplot() +
   guides(size=FALSE) +
   labs(title = paste0("All Cladocerans: 2014-2018"), x="", y="", 
        caption = "Data Source: CDFW IEP Zooplankton Clarke-Bumpus, https://www.wildlife.ca.gov/Conservation/Delta/Zooplankton-Study") +
-  coord_sf(xlim = c(-122.25, -121.35), ylim=c(38.38, 37.85), crs=4326) +
+  coord_sf(xlim = c(-122.25, -121.35), ylim=c(38.6, 37.85), crs=4326) +
   facet_grid(year~season)
 
+# save
+ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet_sized_A.png", width = 8, height = 11, dpi=300, units = "in")
 
-ggsave(filename = "figures/2014_2017_clad_zoop_points_jan_jun_seasonal_facet_sized_A.png", width = 11, height = 8.5, dpi=300, units = "in")
-ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet_D.png", width = 11, height = 8.5, dpi=300, units = "in")
-ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet.pdf", width = 11, height = 8.5, dpi=300, units = "in")
+#ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet_D.png", width = 11, height = 8.5, dpi=300, units = "in")
+#ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet.pdf", width = 11, height = 8.5, dpi=300, units = "in")
 
 # SETUP AND MAP ----------------------------------------------------------
 
