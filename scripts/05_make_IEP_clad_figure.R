@@ -118,37 +118,57 @@ clad_filt4 <- bind_rows(clad_filt3[,c(1:6,10, 13,14)], dwr) %>% data.frame() %>%
   st_as_sf(coords = c("lon","lat"), crs=4326, remove=FALSE) %>% 
   mutate(allclad_cut = as.integer(Hmisc::cut2(allcladocera_log, g=5))*.8) # make breaks
 
+#save(clad_filt4, file = "data_output/clad_filt_2014_2018.rda")
+
+
 # Quick Facet -------------------------------------------------------------
 
 # for fancy scale bar & North Arrow
 #annotation_scale(location = "bl", height = unit(0.14, "cm"), pad_y = unit(0.2, "cm")) +
 #annotation_north_arrow(location = "bl",height = unit(0.8, "cm"),width = unit(0.8, "cm"), pad_y = unit(0.6, "cm"),style = north_arrow_fancy_orienteering(text_size = 8), which_north = "true") +
 
+library(ggtext)
+library(ggspatial)
+library(basemapR) # https://github.com/Chrisjb/basemapR
+
+### NOTES: Also, could you add 2018 to Fig 7 and add units to the caption please?  If you think that adding in 2018 makes the fig too busy/big I'm wondering if we could plot the mean abundance per station for 2014 and 2015 and call those two years "2014-15" to parallel the fish plots. Thoughts?
+
+# MAP
 ggplot() +
-  theme_bw(base_size = 9) +
-  theme(panel.grid.major = element_line(color = "transparent")) +
-        #legend.position = "bottom",
-        #legend.direction = "horizontal") +
-  
-  scale_fill_viridis_c("log(Clad)", option = "A",
-                       na.value = "transparent", limits=c(0,14)) +
+  # basemaps, see: #positron #hydda #voyager #mapnik
+  #base_map(bbox = st_bbox(clad_filt4), basemap = 'hydda', increase_zoom = 3) + 
+  theme_bw(base_family = "Roboto Condensed") + 
+  # plot delta
   geom_sf(data=delta_crop, fill="steelblue", color="steelblue", alpha=0.7, inherit.aes=F) +
-  #geom_sf(data=stations_crop, fill="gray60", alpha=0.5, size=2, show.legend = F, inherit.aes=F) +
-  geom_sf(data=clad_filt4,
-          # with no size
-          #aes(fill=allcladocera_log), pch=21, color="gray20", size=4.5, alpha=0.9) +
-          # with size
-          aes(fill=allcladocera_log, size=allclad_cut), pch=21, color="gray20", alpha=0.9) +
+  # plot sites
+  geom_sf(data=clad_filt4, pch=21, color="gray30", fill="gray80", alpha=0.8, size=1) +
+  # plot clad data
+  geom_sf(data=clad_filt4, aes(fill=allcladocera_log, size=allclad_cut), 
+          pch=21, color="gray20", alpha=0.9) +
+  # plot scale: expression(paste("line1 \n line2 a" [b]))
+  scale_fill_viridis_c(name=ggtext::element_markdown("Abundance (no. indiv m^sq^)"), option = "A", 
+                       breaks=c(0,2,4,6,8,10,12,14), 
+                       labels=c("0","7","55","400","3,000","22,000","163,000","1,203,000"),
+                       na.value = "transparent", limits=c(0,14), 
+                       guide=guide_colorbar(draw.ulim = F, draw.llim = F)) +
   guides(size=FALSE) +
-  labs(title = paste0("All Cladocerans: 2014-2018"), x="", y="", 
+  labs(title = paste0("All Cladocerans: 2014-2018"), x="", y="",
        caption = "Data Source: CDFW IEP Zooplankton Clarke-Bumpus, https://www.wildlife.ca.gov/Conservation/Delta/Zooplankton-Study") +
-  coord_sf(xlim = c(-122.25, -121.35), ylim=c(38.6, 37.85), crs=4326) +
-  facet_grid(year~season)
+  ggplot2::coord_sf(label_axes = "E", crs=4326) + #xlim = c(-122.25, -121.35), ylim=c(38.6, 37.85),
+  facet_grid(year~season) +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_line(colour = 'transparent'),
+        strip.background=element_rect(fill="#5D729D"),
+        strip.text=element_textbox(size=11, color = "white", box.color = "#5D729D" ))
 
 # save
-ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet_sized_A.png", width = 8, height = 11, dpi=300, units = "in")
+ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_faceted_A_revised.png", width = 8.5, height = 11, dpi=300, units = "in", type="cairo") # may need to add type="cairo"
 
-#ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet_D.png", width = 11, height = 8.5, dpi=300, units = "in")
+ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_faceted_A_revised.pdf", width = 8.5, height = 11, dpi=300, units = "in", device=cairo_pdf)
+
+ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet_D.png", width = 11, height = 8.5, dpi=300, units = "in")
 #ggsave(filename = "figures/2014_2018_clad_zoop_points_jan_jun_seasonal_facet.pdf", width = 11, height = 8.5, dpi=300, units = "in")
 
 # SETUP AND MAP ----------------------------------------------------------
