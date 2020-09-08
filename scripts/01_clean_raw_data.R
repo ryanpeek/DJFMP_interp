@@ -7,6 +7,7 @@
 
 library(tidyverse)
 library(readxl)
+library(glue)
 library(fs)
 library(sf)
 library(lubridate)
@@ -17,12 +18,13 @@ library(janitor)
 
 # download file for CB zoop sampling
 # also see "MysidMatrix" and "Pump Matrix"
-ftp_link <- "ftp://ftp.dfg.ca.gov/IEP_Zooplankton/1972-2018CBMatrix.xlsx"
-fn <- basename(ftp_link)
-download.file(ftp_link, destfile = paste0("data/", fn))
+ftp_link <- "ftp://ftp.dfg.ca.gov/IEP_Zooplankton/1972-2019CBMatrix.xlsx"
+(fn <- basename(ftp_link))
+download.file(ftp_link, destfile = glue("data/{fn}"))
 
 # set local link (make sure this folder exists on your RStudio proj)
 loc_link <- paste0("data/", fn)
+# list the sheets in the workbook
 excel_sheets(path = loc_link)
 
 # ZOOP DATA
