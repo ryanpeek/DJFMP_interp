@@ -4,3 +4,8 @@
 .DS_Store
 figures/monthly/*.png
 figures/yearly/*.png
+rosm.cache
+rosm.cache/*
+*.docx
+*.doc
+*.html
