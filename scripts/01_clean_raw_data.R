@@ -17,32 +17,42 @@ library(janitor)
 # GET DATA ----------------------------------------------------------------
 
 # download file for CB zoop sampling
-# also see "MysidMatrix" and "Pump Matrix"
-updateYr <- 2019
+updateYr <- 2019 # last year sampled
+
+# download file
 ftp_link <- glue("ftp://ftp.dfg.ca.gov/IEP_Zooplankton/1972-{updateYr}CBMatrix.xlsx")
-(fn <- basename(ftp_link))
+(fn <- basename(ftp_link)) # set the base file name to use
 download.file(ftp_link, destfile = glue("data/{fn}"))
 
 # set local link (make sure this folder exists on your RStudio proj)
 loc_link <- glue("data/{fn}")
+
 # list the sheets in the workbook
 excel_sheets(path = loc_link)
 
-# ZOOP DATA
+# * IMPORT ZOOP DATA --------------------------------------------------------
+
 cbmatrix <- read_xlsx(loc_link, sheet = 6) %>%  
   clean_names() %>% 
   # fix col formats:
   mutate_at(.vars = c("ec_bottom_pre_tow"), as.numeric)
 
 str(cbmatrix)
+# format
+cb_wide <- cbmatrix
+cb_wide$month <- month(cb_wide$sample_date) # add month
 
-# TAXA LOOKUP DATA
+
+# * GET TAXA DATA --------------------------------------------------------
+
 taxa <- read_xlsx(loc_link, sheet = 4, skip=1) %>% 
   # drop last line:
   slice(1:(n()-1)) %>% 
   clean_names()
   
-# STATION LOCATION DATA
+
+# * GET STATION LOCATIONS -------------------------------------------------
+
 stations <- read_xlsx(loc_link,
                       sheet = 2, skip = 4,
                       col_names = c("Station","Core", "Current", "Location", 
@@ -57,24 +67,12 @@ stations <- read_xlsx(loc_link,
   filter(!is.na(lat)) %>% 
   mutate(lon = lon*-1)
 
-# MAKE SPATIAL ------------------------------------------------------------
-
+# make data into sf (spatial)
 stations_sf <- st_as_sf(stations, coords = c("lon", "lat"), remove = F, crs=4326)
 
 # library(mapview)
 # mapview(stations_sf, zcol="current")
 
-# MAKE WIDE ---------------------------------------------------------------
-
-# make data long not wide, but not necessary
-# names(cbmatrix)
-# cb_dat <- cbmatrix %>%
-#   gather(key = taxa, value= measurement, -c(survey_code:cb_volume))
-
-# FORMAT DATA -------------------------------------------------------------
-
-cb_wide <- cbmatrix
-cb_wide$month <- month(cb_wide$sample_date) # add month
 
 # CHECK DATA FOR MISSINGNESS ----------------------------------------------
 
@@ -91,9 +89,13 @@ range(cb_wide$allcladocera)
 
 # log transform for scaling:
 cb_wide <- cb_wide %>% 
-  mutate(allcladocera_log = log(allcladocera+1))
-# hist(cb_wide$allcladocera_log, col="maroon") # check range
-range(cb_wide$allcladocera_log) # check range
+  # add cpue_ to beginning of all invert cols
+  rename_with(~glue("cpue_{.x}"), .cols=c(acartela:crabzoea)) %>% 
+  # take log of allclad for plotting
+  mutate(cpue_allcladocera_log = log(cpue_allcladocera+1), .after = "cpue_allcladocera")
+
+hist(cb_wide$cpue_allcladocera_log, col="maroon") # check range
+range(cb_wide$cpue_allcladocera_log) # check range
 
 # SAVE OUT ----------------------------------------------------------------
 

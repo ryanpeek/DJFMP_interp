@@ -3,8 +3,10 @@
 
 # Overview ----------------------------------------------------------------
 
-# this data came from the CDFW IEP Zooplankton Data
+# this data came from the IEP Zooplankton Data
 # more info here: http://www.dfg.ca.gov/delta/projects.asp?ProjectID=ZOOPLANKTON
+
+# Interagency Ecological Program: Zooplankton catch and water quality data from the Sacramento River floodplain and tidal slough, collected by the Yolo Bypass Fish Monitoring Program, 1998-2018
 
 # Data Now Lives here:
 # https://portal.edirepository.org/nis/mapbrowse?packageid=edi.494.1
@@ -33,10 +35,10 @@ fn <- glue::glue("IEP_zooplankton_downloaded_{Sys.Date()}.csv")
 download.file(zoop_link, destfile = glue("data/{fn}"))
 
 # ZOOP DATA
-cbmatrix <- read_csv(glue("data/{fn}")) %>%  
+zoop <- read_csv(glue("data/{fn}")) %>%  
   clean_names()
 
-str(cbmatrix)
+str(zoop)
 
 
 # GET TAXONOMY DATA -------------------------------------------------------
@@ -70,33 +72,44 @@ stations_sf <- st_as_sf(stations, coords = c("longitude", "latitude"), remove = 
 library(mapview)
 mapview(stations_sf)
 
-# FORMAT DATA -------------------------------------------------------------
-
-cb_wide <- cbmatrix
-cb_wide$date <- ymd(cb_wide$date)
-cb_wide$mm <- month(cb_wide$date) # add month
 
 # CHECK DATA FOR MISSINGNESS ----------------------------------------------
 
 library(naniar)
-gg_miss_var(cb_wide, "date", show_pct = T)
-gg_miss_var(cb_wide, "allcladocera")
-summary(cb_wide$allcladocera)
-range(cb_wide$allcladocera)
+# add year and month
+zoop <- zoop %>% 
+  mutate(month = month(date))
+gg_miss_var(zoop, "date", show_pct = T)
+gg_miss_var(zoop)
 
-# count how many records by station
-# cb_wide %>% group_by(station) %>% tally() %>% View()
 
-# LOG TRANSFORM -----------------------------------------------------------
+# Get just Cladocerans ----------------------------------------------------
 
-# log transform for scaling:
-cb_wide <- cb_wide %>% 
-  mutate(allcladocera_log = log(allcladocera+1))
-hist(cb_wide$allcladocera_log, col="maroon") # check range
-range(cb_wide$allcladocera_log) # check range
+# filter to mesh size and suborder and after 2012 and cladocerans
+cladlist <- taxa %>% 
+  filter(classification=="Cladocera" | taxon_name=="Cladocera") %>% 
+  pull(taxon_name) # get just taxon_name
+
+# now filter data
+clad_zoop <- zoop %>% 
+  filter(mesh_size=="150_micron", 
+         taxon_name %in% cladlist,  
+         wy>2012) %>% 
+  select(date, month, station_code:turbidity, mesh_size, organism_id:cpue_ed)
+
+# join with TAXA data
+clad_zoop <- left_join(clad_zoop, taxa[,c("organism_id", "common_name","classification","organism")], by="organism_id")
+
+# difference between cpue and cpue_ed?
+summary(clad_zoop$cpue)
+summary(clad_zoop$cpue_ed)
+
+# count how many records by year/month
+clad_zoop %>% group_by(station_code, wy) %>% tally() 
+
 
 # SAVE OUT ----------------------------------------------------------------
 
-save(stations_sf, file= "data/stations_sf.rda")
-save(cb_wide, file="data/cleaned_CB_data.rda")
+save(clad_zoop, file= glue("data/DWR_zoop_SHR_STTD_2018.rda"))
+write_csv(clad_zoop, path = glue("data/DWR_zoop_SHR_STTD_2018.csv"))
 
