@@ -11,6 +11,7 @@ library(sf)
 library(lubridate)
 library(janitor)
 
+options(scipen = 999)
 
 # GET DATASETS ---------------------------------------------------------
 
@@ -36,28 +37,37 @@ names(clad_zoop)
 
 cb_trim <- cb_wide %>% filter(year>2012, year<2019, month %in% c(1:5)) %>% 
   select(station_code=station_nz, year, month, date=sample_date, core, 
-         region, location, lat, lon, cpue_bosmina, cpue_daphnia,
-         cpue_allcladocera)
+         region, location, lat, lon, cpue_allcladocera) # drop cpue_bosmina, cpue_daphnia
 
 # gather species data up into one col
 cb_trim <- cb_trim %>% 
   pivot_longer(cols = starts_with("cpue_"), names_prefix="cpue_", names_to="taxa_id", values_to="cpue")
 
 # now the SHR/STTD data
-clad_trim <- clad_zoop %>% filter(wy>2012, year<2019, month %in% c(1:5)) %>% 
+clad_trim <- clad_zoop %>% filter(wy>2012, wy<2019, month %in% c(1:5)) %>% 
   select(station_code, year=wy, month, date, location=station_name, lat, lon, cpue, classification:organism) %>% 
   mutate(taxa_id=glue("{classification}_{organism}")) %>% 
   select(-classification, -organism)
+
+# do we need to take the avg for each year/site/month across all clad?
+clad_trim_avg <- clad_trim %>% 
+  group_by(station_code, year, month, date, location, lat, lon) %>% 
+  summarize(cpue=mean(cpue),
+            taxa_id = "cladocera_combined",
+            region = "SacR")
+
+# join back:
+#clad_trim <- left_join(clad_trim, clad_trim_avg[c("station_code","date","cpue")], by=c("station_code", "date"))
 
 
 # COMBINE! ----------------------------------------------------------------
 
 # can check that all records are unique
-anti_join(clad_trim, cb_trim) %>% dim # equal to all rows in clad_trim
-anti_join(cb_trim, clad_trim) %>% dim # equal to all rows in cb_trim
+anti_join(clad_trim_avg, cb_trim) %>% dim # equal to all rows in clad_trim
+anti_join(cb_trim, clad_trim_avg) %>% dim # equal to all rows in cb_trim
 
 # combine two datasets so can use one single one
-zoop_comb <- bind_rows(clad_trim, cb_trim)
+zoop_comb <- bind_rows(clad_trim_avg, cb_trim)
 
 # MAKE SPATIAL ------------------------------------------------------------
 
@@ -73,7 +83,9 @@ zoop_comb_sf <- zoop_comb_sf %>%
 
 library(mapview)
 mapviewOptions(fgb=FALSE, platform = "leaflet")
-mapview(zoop_comb_sf[zoop_comb_sf$year==2014,], zcol="cpue_log")
+
+mapview(zoop_comb_sf[zoop_comb_sf$month==3,], zcol="year", 
+        burst=TRUE, cex="cpue_log", layer.name="Mar")
 
 library(tmap)
 #tmap_mode("view")
@@ -81,7 +93,6 @@ tmap_mode("plot")
 tm_shape(zoop_comb_sf) + 
   tm_bubbles(col="cpue_log") +
   tm_facets(by = "year")
-
 
 
 # Save out ----------------------------------------------------------------
