@@ -97,8 +97,15 @@ clad_zoop <- zoop %>%
          wy>2012) %>% 
   select(date, month, station_code:turbidity, mesh_size, organism_id:cpue_ed)
 
+
+# JOIN DATA SETS ----------------------------------------------------------
+
 # join with TAXA data
 clad_zoop <- left_join(clad_zoop, taxa[,c("organism_id", "common_name","classification","organism")], by="organism_id")
+
+# join with SITES data
+clad_zoop <- left_join(clad_zoop, stations, by="station_code") %>% 
+  rename(lat=latitude, lon=longitude)
 
 # difference between cpue and cpue_ed?
 summary(clad_zoop$cpue)

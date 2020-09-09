@@ -97,6 +97,12 @@ cb_wide <- cb_wide %>%
 hist(cb_wide$cpue_allcladocera_log, col="maroon") # check range
 range(cb_wide$cpue_allcladocera_log) # check range
 
+
+# JOIN DATA ---------------------------------------------------------------
+
+cb_wide <- left_join(cb_wide, stations[,c(1,3:8)], by=c("station_nz"="station")) %>% select(survey_code:dwr_station_no, core, region, month:lon, depth:cpue_crabzoea)
+
+
 # SAVE OUT ----------------------------------------------------------------
 
 save(stations_sf, file= glue("data/iep_stations_sf_{updateYr}.rda"))
