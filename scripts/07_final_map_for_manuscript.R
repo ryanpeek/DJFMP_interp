@@ -117,7 +117,7 @@ map1 <- get_map(location=ggbbox, crop = F,
 
 # set background
 SiteMap <- ggmap(map1) +
-  coord_sf(xlim = c(-122.25, -121.15), ylim=c(38.8, 37.62), expand = FALSE, )+
+  coord_sf(xlim = c(-122.25, -121.15), ylim=c(38.8, 37.62), expand = FALSE)+
   # add north arrow and scale bar
   annotation_north_arrow(location = "bl",
                          height = unit(0.8, "cm"),
